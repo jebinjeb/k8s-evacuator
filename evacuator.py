@@ -340,7 +340,7 @@ class ProgressTracker:
 # -----------------------------
 # Evacuation Logic
 # -----------------------------
-def evacuate_group(kind, name, ns, pods, batch_size, tracker, dry_run, strategy=args.eviction_strategy):
+def evacuate_group(kind, name, ns, pods, batch_size, tracker, dry_run, strategy="high"):
 
     if kind == "orphan":
         log.warning(f"[SKIP] Orphan workload {name}")
