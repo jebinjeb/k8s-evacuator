@@ -27,6 +27,16 @@ A Python-based tool to safely evacuate pods from a Kubernetes node, with **intel
 
 ---
 
+## TODO
+
+- **Rollback / Retry**: If eviction fails mid-way, optionally rollback already evicted pods or retry safely.
+- **Advanced Dry-Run Simulation**: Check if pods can actually be scheduled on other nodes before eviction.
+  - NodeSelector / Affinity rules
+  - Taints & tolerations
+  - Available CPU / memory
+
+
+
 ## Installation
 
 ```bash
