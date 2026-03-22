@@ -17,7 +17,10 @@ A Python-based tool to safely evacuate pods from a Kubernetes node, with **intel
 
 - **Safe pod evacuation** without modifying Deployment/StatefulSet specs.  
 - **Pod-aware batching**: one-by-one, fixed-size batch, or all-at-once.  
-- **StatefulSet support**: pods evicted in ordinal order to preserve stability.  
+- **StatefulSet support**: pods evicted in ordinal order to preserve stability. 
+- **Grouping strategies**:
+  - owner (default for workloads) → evacuates pods workload by workload.
+  - spread → evicts pods from multiple workloads evenly across batches to minimize impact per workload.
 - **Pre and post-checks**: waits for workloads to reach **desired state**.  
 - **Excludes**: DaemonSets, Jobs, completed/failed pods, mirror pods.  
 - **Optional metrics**: push per-pod progress and status to Prometheus Pushgateway.  
@@ -34,6 +37,7 @@ A Python-based tool to safely evacuate pods from a Kubernetes node, with **intel
   - NodeSelector / Affinity rules
   - Taints & tolerations
   - Available CPU / memory
+- Consider per-workload max-unavailable in spread mode to avoid evicting all replicas at once.
 
 
 

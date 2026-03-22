@@ -206,3 +206,48 @@ def wait_for_replacement(pod, source_node,
             time.sleep(SLEEP_INTERVAL)
 
     raise TimeoutError(f"Replacement pod failed for {pod.metadata.name}")
+
+
+from collections import defaultdict, deque
+
+def group_by_spread(pods, batch_size=2):
+    """
+    Evenly distribute pods across batches using round-robin across workloads.
+    Works with:
+    - random pod names
+    - uneven replicas
+    - single/multiple workloads
+    """
+
+    owners = defaultdict(list)
+
+    # Step 1: group by owner
+    for pod in pods:
+        if not pod.metadata.owner_references:
+            key = ("orphan", pod.metadata.name, pod.metadata.namespace)
+        else:
+            owner = pod.metadata.owner_references[0]
+            key = (owner.kind, owner.name, pod.metadata.namespace)
+
+        owners[key].append(pod)
+
+    # Step 2: convert to queues (important for popping)
+    queues = {k: deque(v) for k, v in owners.items()}
+
+    batches = []
+
+    while any(queues.values()):
+        batch = []
+
+        # round-robin pick
+        for key in list(queues.keys()):
+            if queues[key]:
+                batch.append(queues[key].popleft())
+
+                if batch_size and len(batch) >= batch_size:
+                    break
+
+        if batch:
+            batches.append(batch)
+
+    return batches
