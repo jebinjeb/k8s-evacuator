@@ -98,3 +98,94 @@ This tool can optionally push per-pod evacuation metrics to a Prometheus Pushgat
 ```bash
 python k8s_evacuator.py --node <node_name> --pushgateway http://pushgateway.example.com:9091
 ```
+
+## 📊 Metrics TODO
+
+### 🚀 1. Pod Movement Metric
+
+Tracks how pods move between nodes during evacuation.
+
+#### Metric Definition
+
+| Metric Name | Labels | Description |
+|------------|--------|------------|
+| `evacuation_pod_movement` | `old_pod`, `old_node`, `new_pod`, `new_node`, `namespace`, `status` | Tracks pod migration from source node to destination node |
+
+#### Label Details
+
+| Label | Description | Example |
+|------|------------|--------|
+| `old_pod` | Original pod name | `nginx-abc123` |
+| `old_node` | Source node (hostname) | `k3s-lab-worker` |
+| `new_pod` | New pod name after rescheduling | `nginx-xyz789` |
+| `new_node` | Destination node | `k3s-lab-worker-2` |
+| `namespace` | Kubernetes namespace | `default` |
+| `status` | Movement result | `moved`, `failed` |
+
+#### Examples
+
+| Scenario | Metric |
+|--------|--------|
+| Deployment Pod | `evacuation_pod_movement{old_pod="nginx-abc", old_node="node1", new_pod="nginx-def", new_node="node2", namespace="default", status="moved"} 1` |
+| StatefulSet Pod | `evacuation_pod_movement{old_pod="mysql-0", old_node="node1", new_pod="mysql-0", new_node="node2", namespace="db", status="moved"} 1` |
+| Failed Evacuation | `evacuation_pod_movement{old_pod="redis-abc", old_node="node1", new_pod="unknown", new_node="unknown", namespace="cache", status="failed"} 1` |
+
+---
+
+### 📦 2. Pod Status Metric
+
+Tracks lifecycle of pods during evacuation.
+
+#### Metric Definition
+
+| Metric Name | Labels | Description |
+|------------|--------|------------|
+| `evacuation_pod_status` | `pod`, `namespace`, `status` | Tracks pod state transitions during evacuation |
+
+#### Label Details
+
+| Label | Description | Example |
+|------|------------|--------|
+| `pod` | Pod name | `nginx-abc123` |
+| `namespace` | Kubernetes namespace | `default` |
+| `status` | Pod state | `evicted`, `ready`, `failed` |
+
+#### Examples
+
+| Status | Metric |
+|-------|--------|
+| Evicted | `evacuation_pod_status{pod="nginx-abc", namespace="default", status="evicted"} 1` |
+| Ready | `evacuation_pod_status{pod="nginx-def", namespace="default", status="ready"} 1` |
+
+---
+
+### ⏱️ 3. Pod Rescheduling Duration (Optional)
+
+Tracks time taken for pods to become ready after eviction.
+
+#### Metric Definition
+
+| Metric Name | Labels | Description |
+|------------|--------|------------|
+| `evacuation_pod_reschedule_duration_seconds` | `pod`, `namespace` | Time taken for pod rescheduling |
+
+#### Example
+
+| Metric Type | Example |
+|------------|--------|
+| Bucket | `evacuation_pod_reschedule_duration_seconds_bucket{pod="nginx", namespace="default", le="5"} 1` |
+| Sum | `evacuation_pod_reschedule_duration_seconds_sum{pod="nginx", namespace="default"} 3.2` |
+| Count | `evacuation_pod_reschedule_duration_seconds_count{pod="nginx", namespace="default"} 1` |
+
+---
+
+### 🔍 Useful Prometheus Queries
+
+| Use Case | Query |
+|--------|------|
+| Pods moved from a node | `evacuation_pod_movement{old_node="k3s-lab-worker", status="moved"}` |
+| Distribution across nodes | `sum by (new_node) (evacuation_pod_movement{status="moved"})` |
+| Failed evacuations | `evacuation_pod_movement{status="failed"}` |
+| Total evicted pods | `count(evacuation_pod_status{status="evicted"})` |
+
+---
