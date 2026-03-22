@@ -1,8 +1,15 @@
-# cli.py
 #!/usr/bin/env python3
 import argparse
 import logging
-from k8s import cordon_node, uncordon_node, get_pods_on_node, group_by_owner
+from k8s import (
+    cordon_node,
+    uncordon_node,
+    get_pods_on_node,
+    group_by_owner,
+    group_by_spread,
+    evict_pod,
+    wait_for_replacement,
+)
 from evacuator import evacuate_group
 from metrics import ProgressTracker
 from kube import load_config, get_clients
@@ -12,8 +19,6 @@ log = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 300
 DEFAULT_RETRIES = 5
-
-
 
 def main():
     parser = argparse.ArgumentParser(description="Advanced K8s Node Evacuator")
@@ -25,33 +30,61 @@ def main():
     parser.add_argument("--pushgateway")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--eviction-strategy", choices=["high", "low"], default="high")
-    parser.add_argument("--group-strategy", choices=["owner", "spread"], default="spread", help="Grouping strategy for evacuation")
+    parser.add_argument(
+        "--group-strategy",
+        choices=["owner", "spread"],
+        default="spread",
+        help="Grouping strategy for evacuation"
+    )
     args = parser.parse_args()
 
-    # Load config FIRST
+    # Load Kubernetes config FIRST
     load_config()
 
-    # Create clients AFTER config
+    # Create API clients AFTER config
     clients = get_clients()
     core = clients["core"]
     policy = clients["policy"]
 
+    # Cordon the node
     cordon_node(core, args.node, dry_run=args.dry_run)
+
     try:
         pods = get_pods_on_node(core, args.node)
         log.info(f"Found {len(pods)} pods")
-        groups = group_by_owner(pods)
+
         tracker = ProgressTracker(total=len(pods), pushgateway=args.pushgateway)
 
-        for (kind, name, ns), group_pods in groups.items():
-            evacuate_group(
-                kind, name, ns,
-                group_pods,
-                args.batch_size,
-                tracker,
-                args.dry_run,
-                strategy=args.eviction_strategy
-            )
+        if args.group_strategy == "owner":
+            grouped = group_by_owner(pods)
+            groups = list(grouped.items())
+
+            # Evacuate workload by workload
+            for (kind, name, ns), group_pods in groups:
+                evacuate_group(
+                    kind, name, ns,
+                    group_pods,
+                    args.batch_size,
+                    tracker,
+                    args.dry_run,
+                    strategy=args.eviction_strategy
+                )
+
+        elif args.group_strategy == "spread":
+            batches = group_by_spread(pods, args.batch_size)
+
+            # Spread mode: evict pods in batches directly
+            for batch in batches:
+                log.info(f"[SPREAD-BATCH] Evicting {len(batch)} pods")
+                for pod in batch:
+                    evict_pod(pod, dry_run=args.dry_run)
+                    tracker.evicted += 1
+                    tracker.log()
+
+                if not args.dry_run:
+                    for pod in batch:
+                        wait_for_replacement(pod, pod.spec.node_name)
+
     finally:
         if args.uncordon:
             uncordon_node(core, args.node, dry_run=args.dry_run)
