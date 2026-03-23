@@ -21,6 +21,7 @@ A Python-based tool to safely evacuate pods from a Kubernetes node, with **intel
 - **Grouping strategies**:
   - owner (default for workloads) → evacuates pods workload by workload.
   - spread → evicts pods from multiple workloads evenly across batches to minimize impact per workload.
+    - Supports controlled execution via `--max-batches` (process N batches and exit).
 - **Pre and post-checks**: waits for workloads to reach **desired state**.  
 - **Excludes**: DaemonSets, Jobs, completed/failed pods, mirror pods.  
 - **Optional metrics**: push per-pod progress and status to Prometheus Pushgateway.  
