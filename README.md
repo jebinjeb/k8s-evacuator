@@ -166,7 +166,7 @@ flowchart TD
 
     N --> O[Evict via Eviction API]
 
-    O -->|PDB Block (429)| P[Retry / Backoff]
+    O -->|PDB Block 429| P[Retry / Backoff]
     P --> O
 
     O --> Q[Scheduler]
