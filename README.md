@@ -186,7 +186,7 @@ flowchart TD
     style A fill:#f9f,stroke:#333
     style B fill:#bbf,stroke:#333
     style O fill:#fbb,stroke:#333
-
+```
 
 ## 📊 Metrics (Prometheus Pushgateway)
 
